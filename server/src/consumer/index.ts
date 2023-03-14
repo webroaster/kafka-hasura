@@ -4,8 +4,6 @@ import axios from "axios"
 
 dotenv.config()
 
-const TABLE_NAME = process.env.TABLE_NAME
-
 const graphqlAxiosInstance = axios.create({
   baseURL: process.env.GRAPHQL_URL,
 })
@@ -13,21 +11,60 @@ const graphqlAxiosInstance = axios.create({
 const Consumer = kafka.Consumer
 const client = new kafka.KafkaClient({ kafkaHost: `${process.env.KAFKA_HOST}` })
 
-const consumer = new Consumer(
+const topicsToCreate = [
+  {
+    topic: `${process.env.TOPIC_GET_USER}`,
+    partitions: 1,
+    replicationFactor: 1,
+  },
+  {
+    topic: `${process.env.TOPIC_CREATE}`,
+    partitions: 1,
+    replicationFactor: 1,
+  },
+]
+
+client.createTopics(topicsToCreate, (error, result) => {
+  if (error) {
+    console.error(error)
+  }
+})
+
+const createConsumer = new Consumer(
   client,
-  [{ topic: `${process.env.KAFKA_TOPIC}`, partition: 0 }],
+  [{ topic: `${process.env.TOPIC_CREATE}`, partition: 0 }],
   {
     autoCommit: true,
     fromOffset: true,
   }
 )
 
-consumer.on("message", async (message) => {
+// ユーザー登録
+createConsumer.on("message", async (message) => {
   const json = JSON.parse(message.value as any)
 
-  const query = `
+  const getUsersQuery = `
+    {
+      ${process.env.TABLE_NAME}(order_by: {id: asc}) {
+        id
+        username
+        email
+        password
+      }
+    }
+  `
+  const { data } = await graphqlAxiosInstance.post("", { query: getUsersQuery })
+
+  let sameEmail = 0
+  data.data.users.forEach(async (user: any) => {
+    if (user.email === json.email) {
+      sameEmail++
+    }
+  })
+
+  const createQuery = `
     mutation {
-      insert_${TABLE_NAME} (objects: [{
+      insert_${process.env.TABLE_NAME} (objects: [{
         username: "${json.username}",
         email: "${json.email}",
         password: "${json.password}"
@@ -42,13 +79,16 @@ consumer.on("message", async (message) => {
     }
   `
 
-  try {
-    await graphqlAxiosInstance.post("", { query })
-  } catch (err) {
-    console.error(err)
+  if (sameEmail === 0) {
+    try {
+      await graphqlAxiosInstance.post("", { query: createQuery })
+      console.log("登録完了")
+    } catch (err) {
+      console.error(err)
+    }
   }
 })
 
-consumer.on("error", (err) => {
+createConsumer.on("error", (err) => {
   console.error(err)
 })
