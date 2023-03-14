@@ -24,11 +24,6 @@ const client = new kafka.KafkaClient({
 
 const topicsToCreate = [
   {
-    topic: `${process.env.TOPIC_GET_USER}`,
-    partitions: 1,
-    replicationFactor: 1,
-  },
-  {
     topic: `${process.env.TOPIC_CREATE}`,
     partitions: 1,
     replicationFactor: 1,
@@ -47,34 +42,10 @@ const producer = new kafka.Producer(client, {
 
 producer.on("ready", async () => {
   console.log("プロデューサー起動")
-  const query = `
-    {
-      ${process.env.TABLE_NAME}(order_by: {id: asc}) {
-        id
-        username
-        email
-        password
-      }
-    }
-  `
-
-  const { data } = await graphqlAxiosInstance.post("", { query })
-
-  const payload = [
-    {
-      topic: `${process.env.TOPIC_GET_USERS}`,
-      messages: JSON.stringify(data.data),
-    },
-  ]
-
-  producer.send(payload, (err, data) => {
-    if (err) console.log(err)
-    else console.log("全ユーザーデータ送信")
-  })
 })
 
 // 全データ取得
-app.get("/users", async (request, reply) => {
+app.get("/users", async (_, reply) => {
   const query = `
     {
       ${process.env.TABLE_NAME}(order_by: {id: asc}) {

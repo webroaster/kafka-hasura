@@ -13,18 +13,13 @@ const client = new kafka.KafkaClient({ kafkaHost: `${process.env.KAFKA_HOST}` })
 
 const topicsToCreate = [
   {
-    topic: `${process.env.TOPIC_GET_USER}`,
-    partitions: 1,
-    replicationFactor: 1,
-  },
-  {
     topic: `${process.env.TOPIC_CREATE}`,
     partitions: 1,
     replicationFactor: 1,
   },
 ]
 
-client.createTopics(topicsToCreate, (error, result) => {
+client.createTopics(topicsToCreate, (error, _) => {
   if (error) {
     console.error(error)
   }
@@ -53,14 +48,6 @@ createConsumer.on("message", async (message) => {
       }
     }
   `
-  const { data } = await graphqlAxiosInstance.post("", { query: getUsersQuery })
-
-  let sameEmail = 0
-  data.data.users.forEach(async (user: any) => {
-    if (user.email === json.email) {
-      sameEmail++
-    }
-  })
 
   const createQuery = `
     mutation {
@@ -78,6 +65,15 @@ createConsumer.on("message", async (message) => {
       }
     }
   `
+
+  const { data } = await graphqlAxiosInstance.post("", { query: getUsersQuery })
+
+  let sameEmail = 0
+  data.data.users.forEach(async (user: any) => {
+    if (user.email === json.email) {
+      sameEmail++
+    }
+  })
 
   if (sameEmail === 0) {
     try {
