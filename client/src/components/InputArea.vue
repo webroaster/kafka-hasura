@@ -7,6 +7,7 @@ const email = ref("")
 const password = ref("")
 const confirmPassword = ref("")
 const isError = ref(false)
+const isExists = ref(false)
 
 // ユーザー作成
 const createUser = async () => {
@@ -18,19 +19,31 @@ const createUser = async () => {
   ) {
     isError.value = true
   } else {
-    await axios.post("/create", {
+    const data = await axios.post("/create", {
       username: username.value,
       email: email.value,
       password: password.value,
     })
+    if (data.status === 201) {
+      isExists.value = true
+    } else {
+      // ユーザーテーブルコンポーネント際レンダリングしたい
+      username.value = ""
+      email.value = ""
+      password.value = ""
+      confirmPassword.value = ""
+    }
   }
 }
 </script>
 
 <template>
-  <form>
+  <form @submit.prevent="createUser">
     <p class="error-message" v-if="isError">
       入力欄が正しく入力されていません。
+    </p>
+    <p class="error-message" v-if="isExists">
+      このアドレスは既に登録されています。
     </p>
     <label for="username">ユーザー名</label>
     <input
@@ -65,7 +78,7 @@ const createUser = async () => {
       required
     />
     <div>
-      <button @click="createUser">ユーザー追加</button>
+      <button type="submit">ユーザー追加</button>
     </div>
   </form>
 </template>

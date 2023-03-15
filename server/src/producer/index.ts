@@ -63,19 +63,42 @@ app.get("/users", async (_, reply) => {
 })
 
 // ユーザー登録
-app.post("/create", (request, reply) => {
-  const payload = [
+app.post("/create", async (request, reply) => {
+  const body = request.body as any
+  const query = `
     {
-      topic: `${process.env.TOPIC_CREATE}`,
-      messages: JSON.stringify(request.body),
-    },
-  ]
-  producer.send(payload, (err, data) => {
-    if (err) console.log(err)
-    else console.log(`プロデューサーから送信`)
+      ${process.env.TABLE_NAME}(order_by: {id: asc}) {
+        id
+        username
+        email
+        password
+      }
+    }
+  `
+  const { data } = await graphqlAxiosInstance.post("", { query })
+
+  let sameEmail = 0
+  data.data.users.forEach(async (user: any) => {
+    if (user.email === body.email) {
+      sameEmail++
+    }
   })
 
-  return reply.send({ message: "ok" })
+  if (sameEmail === 0) {
+    const payload = [
+      {
+        topic: `${process.env.TOPIC_CREATE}`,
+        messages: JSON.stringify(request.body),
+      },
+    ]
+    producer.send(payload, (err, data) => {
+      if (err) console.log(err)
+      else console.log(`ユーザーデータKafkaに格納`)
+    })
+    return reply.send({ message: "ok" })
+  } else {
+    return reply.status(201).send({ message: "既に登録されています。" })
+  }
 })
 
 producer.on("error", (err) => console.log(err))
