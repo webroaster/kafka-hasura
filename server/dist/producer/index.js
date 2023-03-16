@@ -68,13 +68,13 @@ app.post("/create", async (request, reply) => {
     }
   `;
     const { data } = await graphqlAxiosInstance.post("", { query });
-    let sameEmail = 0;
+    let sameUser = 0;
     data.data.users.forEach(async (user) => {
-        if (user.email === body.email) {
-            sameEmail++;
+        if (user.email === body.email || user.username === body.username) {
+            sameUser++;
         }
     });
-    if (sameEmail === 0) {
+    if (sameUser === 0) {
         const payload = [
             {
                 topic: `${process.env.TOPIC_CREATE}`,
@@ -84,8 +84,10 @@ app.post("/create", async (request, reply) => {
         producer.send(payload, (err, data) => {
             if (err)
                 console.log(err);
-            else
-                console.log(`ユーザーデータKafkaに格納`);
+            else {
+                console.log(data);
+                console.log(`ユーザーデータをKafkaに格納`);
+            }
         });
         return reply.send({ message: "ok" });
     }

@@ -38,17 +38,6 @@ const createConsumer = new Consumer(
 createConsumer.on("message", async (message) => {
   const json = JSON.parse(message.value as any)
 
-  const getUsersQuery = `
-    {
-      ${process.env.TABLE_NAME}(order_by: {id: asc}) {
-        id
-        username
-        email
-        password
-      }
-    }
-  `
-
   const createQuery = `
     mutation {
       insert_${process.env.TABLE_NAME} (objects: [{
@@ -66,22 +55,17 @@ createConsumer.on("message", async (message) => {
     }
   `
 
-  const { data } = await graphqlAxiosInstance.post("", { query: getUsersQuery })
-
-  let sameEmail = 0
-  data.data.users.forEach(async (user: any) => {
-    if (user.email === json.email) {
-      sameEmail++
-    }
-  })
-
-  if (sameEmail === 0) {
-    try {
-      await graphqlAxiosInstance.post("", { query: createQuery })
+  try {
+    const createData = await graphqlAxiosInstance.post("", {
+      query: createQuery,
+    })
+    if (!createData.data.errors) {
       console.log("登録完了")
-    } catch (err) {
-      console.error(err)
+    } else {
+      console.log("登録済のため登録できませんでした。")
     }
+  } catch (err) {
+    console.error(err)
   }
 })
 
