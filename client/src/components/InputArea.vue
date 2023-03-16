@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import axios from "../axios-config"
 import { ref } from "vue"
+import { useStore } from "vuex"
+
+const store = useStore()
 
 const username = ref("")
 const email = ref("")
@@ -32,18 +35,19 @@ const createUser = async () => {
       email.value = ""
       password.value = ""
       confirmPassword.value = ""
+      await store.dispatch("getUsers")
     }
   }
 }
 </script>
 
 <template>
-  <form @submit.prevent="createUser">
+  <form>
     <p class="error-message" v-if="isError">
       入力欄が正しく入力されていません。
     </p>
     <p class="error-message" v-if="isExists">
-      このアドレスは既に登録されています。
+      このユーザーは既に登録されています。
     </p>
     <label for="username">ユーザー名</label>
     <input
@@ -78,7 +82,7 @@ const createUser = async () => {
       required
     />
     <div>
-      <button type="submit">ユーザー追加</button>
+      <button @click="createUser">ユーザー追加</button>
     </div>
   </form>
 </template>
