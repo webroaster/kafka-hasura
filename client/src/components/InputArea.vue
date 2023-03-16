@@ -42,7 +42,7 @@ const createUser = async () => {
 </script>
 
 <template>
-  <form>
+  <form @submit.prevent="createUser">
     <p class="error-message" v-if="isError">
       入力欄が正しく入力されていません。
     </p>
@@ -82,7 +82,7 @@ const createUser = async () => {
       required
     />
     <div>
-      <button @click="createUser">ユーザー追加</button>
+      <button>ユーザー追加</button>
     </div>
   </form>
 </template>

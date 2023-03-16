@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted } from "vue"
+import { onMounted, computed, watch } from "vue"
 import { useStore } from "vuex"
 
 const store = useStore()
@@ -7,6 +7,12 @@ const store = useStore()
 onMounted(async () => {
   await store.dispatch("getUsers")
 })
+const users = computed(() => store.state.users)
+
+const getUsers = async () => {
+  await store.dispatch("getUsers")
+}
+watch(users, getUsers)
 </script>
 
 <template>
