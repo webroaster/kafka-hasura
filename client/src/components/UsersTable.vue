@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, computed, watch } from "vue"
+import { onMounted, computed } from "vue"
 import { useStore } from "vuex"
 
 const store = useStore()
@@ -7,35 +7,23 @@ const store = useStore()
 onMounted(async () => {
   await store.dispatch("getUsers")
 })
-const users = computed(() => store.state.users)
 
-const getUsers = async () => {
-  await store.dispatch("getUsers")
-}
-watch(users, getUsers)
+const users = computed(() => store.state.users)
 </script>
 
 <template>
-  <Suspense>
-    <template #default>
-      <table>
-        <tr>
-          <th>username</th>
-          <th>email</th>
-          <th>password</th>
-        </tr>
-        <tr v-for="(user, i) in store.state.users" :key="i">
-          <td>{{ user.username }}</td>
-          <td>{{ user.email }}</td>
-          <td>{{ user.password }}</td>
-        </tr>
-      </table>
-    </template>
-
-    <template #fallback>
-      <p>Loading...</p>
-    </template>
-  </Suspense>
+  <table>
+    <tr>
+      <th>username</th>
+      <th>email</th>
+      <th>password</th>
+    </tr>
+    <tr v-for="(user, i) in users" :key="i">
+      <td>{{ user.username }}</td>
+      <td>{{ user.email }}</td>
+      <td>{{ user.password }}</td>
+    </tr>
+  </table>
 </template>
 
 <style scoped>

@@ -11,20 +11,6 @@ const graphqlAxiosInstance = axios.create({
 const Consumer = kafka.Consumer
 const client = new kafka.KafkaClient({ kafkaHost: `${process.env.KAFKA_HOST}` })
 
-const topicsToCreate = [
-  {
-    topic: `${process.env.TOPIC_CREATE}`,
-    partitions: 1,
-    replicationFactor: 1,
-  },
-]
-
-client.createTopics(topicsToCreate, (error, _) => {
-  if (error) {
-    console.error(error)
-  }
-})
-
 const createConsumer = new Consumer(
   client,
   [{ topic: `${process.env.TOPIC_CREATE}`, partition: 0 }],

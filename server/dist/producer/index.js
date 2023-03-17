@@ -21,18 +21,6 @@ app.register(cors_1.default, {
 const client = new kafka_node_1.default.KafkaClient({
     kafkaHost: `${process.env.KAFKA_HOST}`,
 });
-const topicsToCreate = [
-    {
-        topic: `${process.env.TOPIC_CREATE}`,
-        partitions: 1,
-        replicationFactor: 1,
-    },
-];
-client.createTopics(topicsToCreate, (error, result) => {
-    if (error) {
-        console.error(error);
-    }
-});
 const producer = new kafka_node_1.default.Producer(client, {
     partitionerType: 1,
 });

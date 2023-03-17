@@ -22,20 +22,6 @@ const client = new kafka.KafkaClient({
   kafkaHost: `${process.env.KAFKA_HOST}`,
 })
 
-const topicsToCreate = [
-  {
-    topic: `${process.env.TOPIC_CREATE}`,
-    partitions: 1,
-    replicationFactor: 1,
-  },
-]
-
-client.createTopics(topicsToCreate, (error, result) => {
-  if (error) {
-    console.error(error)
-  }
-})
-
 const producer = new kafka.Producer(client, {
   partitionerType: 1,
 })

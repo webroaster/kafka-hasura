@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import axios from "../axios-config"
 import { ref } from "vue"
 import { useStore } from "vuex"
 
@@ -22,11 +21,12 @@ const createUser = async () => {
   ) {
     isError.value = true
   } else {
-    const data = await axios.post("/create", {
+    const newUser = {
       username: username.value,
       email: email.value,
       password: password.value,
-    })
+    }
+    const data = await store.dispatch("createUser", newUser)
     if (data.status === 201) {
       isExists.value = true
     } else {
@@ -35,7 +35,8 @@ const createUser = async () => {
       email.value = ""
       password.value = ""
       confirmPassword.value = ""
-      await store.dispatch("getUsers")
+      isError.value = false
+      isExists.value = false
     }
   }
 }
