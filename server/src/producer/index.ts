@@ -18,6 +18,13 @@ app.register(cors, {
   origin: "*",
 })
 
+interface User {
+  id: number
+  username: string
+  email: string
+  password: string
+}
+
 const client = new kafka.KafkaClient({
   kafkaHost: `${process.env.KAFKA_HOST}`,
 })
@@ -26,7 +33,7 @@ const producer = new kafka.Producer(client, {
   partitionerType: 1,
 })
 
-producer.on("ready", async () => {
+producer.on("ready", () => {
   console.log("プロデューサー起動")
 })
 
@@ -50,7 +57,7 @@ app.get("/users", async (_, reply) => {
 
 // ユーザー登録
 app.post("/create", async (request, reply) => {
-  const body = request.body as any
+  const { email, username } = request.body as User
   const query = `
     {
       ${process.env.TABLE_NAME}(order_by: {id: asc}) {
@@ -63,14 +70,11 @@ app.post("/create", async (request, reply) => {
   `
   const { data } = await graphqlAxiosInstance.post("", { query })
 
-  let sameUser = 0
-  data.data.users.forEach(async (user: any) => {
-    if (user.email === body.email || user.username === body.username) {
-      sameUser++
-    }
-  })
+  const isSameUser = data.data.users.some(
+    (user: User) => user.email === email || user.username === username
+  )
 
-  if (sameUser === 0) {
+  if (!isSameUser) {
     const payload = [
       {
         topic: `${process.env.TOPIC_CREATE}`,
@@ -92,10 +96,14 @@ app.post("/create", async (request, reply) => {
 
 producer.on("error", (err) => console.log(err))
 
-app.listen({ port: 3000 }, (err, address) => {
-  if (err) {
-    console.error(err)
+const start = async () => {
+  try {
+    await app.listen(3000)
+    console.log(`Fastifyサーバー起動中：${app.server.address()}`)
+  } catch (err) {
+    app.log.error(err)
     process.exit(1)
   }
-  console.log(`Fastifyサーバー起動中${address}`)
-})
+}
+
+start()

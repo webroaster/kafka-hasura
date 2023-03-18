@@ -1,60 +1,73 @@
-import kafka from "kafka-node"
+import { Consumer, KafkaClient, Message } from "kafka-node"
 import dotenv from "dotenv"
-import axios from "axios"
+import axios, { AxiosInstance } from "axios"
 
 dotenv.config()
 
-const graphqlAxiosInstance = axios.create({
-  baseURL: process.env.GRAPHQL_URL,
-})
+class UserConsumer {
+  private readonly consumer: Consumer
+  private readonly graphqlClient: AxiosInstance
 
-const Consumer = kafka.Consumer
-const client = new kafka.KafkaClient({ kafkaHost: `${process.env.KAFKA_HOST}` })
+  constructor() {
+    this.graphqlClient = axios.create({
+      baseURL: process.env.GRAPHQL_URL,
+    })
 
-const createConsumer = new Consumer(
-  client,
-  [{ topic: `${process.env.TOPIC_CREATE}`, partition: 0 }],
-  {
-    autoCommit: true,
-    fromOffset: true,
+    const client = new KafkaClient({
+      kafkaHost: process.env.KAFKA_HOST as string,
+    })
+
+    this.consumer = new Consumer(
+      client,
+      [{ topic: process.env.TOPIC_CREATE as string, partition: 0 }],
+      {
+        autoCommit: true,
+        fromOffset: true,
+      }
+    )
+
+    this.consumer.on("error", (err) => {
+      console.error(err)
+    })
   }
-)
 
-// ユーザー登録
-createConsumer.on("message", async (message) => {
-  const json = JSON.parse(message.value as any)
-
-  const createQuery = `
-    mutation {
-      insert_${process.env.TABLE_NAME} (objects: [{
-        username: "${json.username}",
-        email: "${json.email}",
-        password: "${json.password}"
-      }]) {
-        returning {
-          id
-          username
-          email
-          password
+  async createConsumerCallback(message: Message): Promise<void> {
+    const user = JSON.parse(message.value as string)
+    const query = `
+      mutation {
+        insert_${process.env.TABLE_NAME} (objects: [{
+          username: "${user.username}",
+          email: "${user.email}",
+          password: "${user.password}"
+        }]) {
+          returning {
+            id
+            username
+            email
+            password
+          }
         }
       }
-    }
-  `
+    `
 
-  try {
-    const createData = await graphqlAxiosInstance.post("", {
-      query: createQuery,
-    })
-    if (!createData.data.errors) {
-      console.log("登録完了")
-    } else {
-      console.log("登録済のため登録できませんでした。")
+    try {
+      const result = await this.graphqlClient.post("", { query })
+      if (result.data.errors) {
+        console.log("登録済のため登録できませんでした。")
+      } else {
+        console.log("登録完了")
+      }
+    } catch (err) {
+      console.error(err)
     }
-  } catch (err) {
-    console.error(err)
   }
-})
 
-createConsumer.on("error", (err) => {
-  console.error(err)
-})
+  start(): void {
+    this.consumer.on("message", async (message) => {
+      await this.createConsumerCallback(message)
+    })
+  }
+}
+
+const userConsumer = new UserConsumer()
+userConsumer.start()

@@ -24,7 +24,7 @@ const client = new kafka_node_1.default.KafkaClient({
 const producer = new kafka_node_1.default.Producer(client, {
     partitionerType: 1,
 });
-producer.on("ready", async () => {
+producer.on("ready", () => {
     console.log("プロデューサー起動");
 });
 // 全データ取得
@@ -44,7 +44,7 @@ app.get("/users", async (_, reply) => {
 });
 // ユーザー登録
 app.post("/create", async (request, reply) => {
-    const body = request.body;
+    const { email, username } = request.body;
     const query = `
     {
       ${process.env.TABLE_NAME}(order_by: {id: asc}) {
@@ -56,13 +56,8 @@ app.post("/create", async (request, reply) => {
     }
   `;
     const { data } = await graphqlAxiosInstance.post("", { query });
-    let sameUser = 0;
-    data.data.users.forEach(async (user) => {
-        if (user.email === body.email || user.username === body.username) {
-            sameUser++;
-        }
-    });
-    if (sameUser === 0) {
+    const isSameUser = data.data.users.some((user) => user.email === email || user.username === username);
+    if (!isSameUser) {
         const payload = [
             {
                 topic: `${process.env.TOPIC_CREATE}`,
@@ -84,10 +79,14 @@ app.post("/create", async (request, reply) => {
     }
 });
 producer.on("error", (err) => console.log(err));
-app.listen({ port: 3000 }, (err, address) => {
-    if (err) {
-        console.error(err);
+const start = async () => {
+    try {
+        await app.listen(3000);
+        console.log(`Fastifyサーバー起動中：${app.server.address()}`);
+    }
+    catch (err) {
+        app.log.error(err);
         process.exit(1);
     }
-    console.log(`Fastifyサーバー起動中${address}`);
-});
+};
+start();
