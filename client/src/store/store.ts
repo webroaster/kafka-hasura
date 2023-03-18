@@ -1,30 +1,20 @@
 import { createStore } from "vuex"
 import axios from "../axios-config"
 
-interface User {
-  id: number
-  username: string
-  email: string
-  password: string
-}
-
 const store = createStore({
-  state() {
-    return {
-      users: [] as Array<User>,
-    }
+  state: {
+    users: [],
   },
   actions: {
     async getUsers({ commit }) {
-      const response = await (await axios.get("/users")).data.users
-      commit("setUsers", response)
+      const response = await axios.get("/users")
+      const users = response.data.users
+      commit("setUsers", users)
     },
-    async createUser({ commit, dispatch }, newUser) {
+    async createUser({ dispatch }, newUser) {
       const response = await axios.post("/create", newUser)
       if (response.status === 200) {
-        setTimeout(async () => {
-          await dispatch("getUsers")
-        }, 1000)
+        setTimeout(() => dispatch("getUsers"), 500)
       }
       return response
     },

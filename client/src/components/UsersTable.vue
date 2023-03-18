@@ -8,7 +8,7 @@ onMounted(async () => {
   await store.dispatch("getUsers")
 })
 
-const users = computed(() => store.state.users)
+const users = computed(() => store.getters.users)
 </script>
 
 <template>

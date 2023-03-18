@@ -4,38 +4,46 @@ import { useStore } from "vuex"
 
 const store = useStore()
 
-const username = ref("")
-const email = ref("")
-const password = ref("")
-const confirmPassword = ref("")
-const isError = ref(false)
+interface User {
+  username: string
+  email: string
+  password: string
+  confirmPassword: string
+}
+
+const user: User = {
+  username: '',
+  email: '',
+  password: '',
+  confirmPassword: ''
+}
+
+const formErrors = ref<string[]>([])
 const isExists = ref(false)
 
 // ユーザー作成
 const createUser = async () => {
-  if (
-    username.value === "" ||
-    email.value === "" ||
-    password.value === "" ||
-    password.value !== confirmPassword.value
-  ) {
-    isError.value = true
+  console.log(formErrors)
+  const errors = []
+  if(!user.username) errors.push('ユーザー名を入力してください。')
+  if(!user.email) errors.push('メールアドレスを入力してください。')
+  if(!user.password) errors.push('パスワードを入力してください。')
+  if(user.password !== user.confirmPassword) errors.push('確認用パスワードが一致しません。')
+  if(errors.length > 0) {
+    formErrors.value = errors
+    console.log(formErrors.value)
   } else {
-    const newUser = {
-      username: username.value,
-      email: email.value,
-      password: password.value,
-    }
-    const data = await store.dispatch("createUser", newUser)
-    if (data.status === 201) {
+    const data = await store.dispatch('createUser', user)
+    if(data.status == 201) {
       isExists.value = true
     } else {
-      // ユーザーテーブルコンポーネント際レンダリングしたい
-      username.value = ""
-      email.value = ""
-      password.value = ""
-      confirmPassword.value = ""
-      isError.value = false
+      Object.assign(user, {
+        username: '',
+        email: '',
+        password: '',
+        confirmPassword: '',
+      })
+      formErrors.value = []
       isExists.value = false
     }
   }
@@ -44,8 +52,8 @@ const createUser = async () => {
 
 <template>
   <form @submit.prevent="createUser">
-    <p class="error-message" v-if="isError">
-      入力欄が正しく入力されていません。
+    <p class="error-message" v-if="formErrors.length">
+      <p v-for="error in formErrors" :key="error" class="error-message">{{ error }}</p>
     </p>
     <p class="error-message" v-if="isExists">
       このユーザーは既に登録されています。
@@ -55,7 +63,7 @@ const createUser = async () => {
       type="text"
       id="username"
       placeholder="username"
-      v-model="username"
+      v-model="user.username"
       required
     />
     <label for="email">メールアドレス</label>
@@ -63,7 +71,7 @@ const createUser = async () => {
       type="text"
       id="email"
       placeholder="foo@example.com"
-      v-model="email"
+      v-model="user.email"
       required
     />
     <label for="password">パスワード</label>
@@ -71,7 +79,7 @@ const createUser = async () => {
       type="password"
       placeholder="password"
       id="password"
-      v-model="password"
+      v-model="user.password"
       required
     />
     <label for="confirmPassword">確認用パスワード</label>
@@ -79,11 +87,11 @@ const createUser = async () => {
       type="password"
       placeholder="confirmPassword"
       id="confirmPassword"
-      v-model="confirmPassword"
+      v-model="user.confirmPassword"
       required
     />
     <div>
-      <button>ユーザー追加</button>
+      <button type="submit">ユーザー追加</button>
     </div>
   </form>
 </template>
@@ -123,6 +131,7 @@ button:hover {
   opacity: 0.8;
 }
 .error-message {
+  margin: 0;
   color: red;
 }
 </style>
