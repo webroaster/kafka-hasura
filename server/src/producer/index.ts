@@ -1,22 +1,10 @@
-import fastify from "fastify"
+import fastify, { FastifyInstance } from "fastify"
 import cors from "@fastify/cors"
-import kafka from "kafka-node"
+import kafka, { KafkaClient, Producer } from "kafka-node"
 import dotenv from "dotenv"
-import axios from "axios"
+import axios, { AxiosInstance } from "axios"
 
 dotenv.config()
-
-const graphqlAxiosInstance = axios.create({
-  baseURL: process.env.GRAPHQL_URL,
-})
-
-const app = fastify({
-  logger: true,
-})
-
-app.register(cors, {
-  origin: "*",
-})
 
 interface User {
   id: number
@@ -25,85 +13,110 @@ interface User {
   password: string
 }
 
-const client = new kafka.KafkaClient({
-  kafkaHost: `${process.env.KAFKA_HOST}`,
-})
+class UserProducer {
+  private app: FastifyInstance
+  private client: KafkaClient
+  private producer: Producer
+  private graphqlClient: AxiosInstance
 
-const producer = new kafka.Producer(client, {
-  partitionerType: 1,
-})
+  constructor() {
+    this.app = fastify({ logger: true })
+    this.client = new kafka.KafkaClient({
+      kafkaHost: `${process.env.KAFKA_HOST}`,
+    })
+    this.producer = new kafka.Producer(this.client, {
+      partitionerType: 1,
+    })
+    this.graphqlClient = axios.create({
+      baseURL: process.env.GRAPHQL_URL,
+    })
+  }
 
-producer.on("ready", () => {
-  console.log("プロデューサー起動")
-})
-
-// 全データ取得
-app.get("/users", async (_, reply) => {
-  const query = `
-    {
-      ${process.env.TABLE_NAME}(order_by: {id: asc}) {
-        id
-        username
-        email
-        password
-      }
+  public async start() {
+    this.registerPlugins()
+    this.setRoutes()
+    this.setEventListeners()
+    try {
+      await this.app.listen(3000)
+      console.log(`Fastifyサーバー起動中：${this.app.server.address()}`)
+    } catch (err) {
+      this.app.log.error(err)
+      process.exit(1)
     }
-  `
+  }
 
-  const { data } = await graphqlAxiosInstance.post("", { query })
+  private registerPlugins() {
+    this.app.register(cors, {
+      origin: "*",
+    })
+  }
 
-  reply.send(data.data)
-})
+  private setRoutes() {
+    this.app.get("/users", async (_, reply) => {
+      const query = `
+        {
+          ${process.env.TABLE_NAME}(order_by: {id: asc}) {
+            id
+            username
+            email
+            password
+          }
+        }
+      `
+      const { data } = await this.graphqlClient.post("", { query })
 
-// ユーザー登録
-app.post("/create", async (request, reply) => {
-  const { email, username } = request.body as User
-  const query = `
-    {
-      ${process.env.TABLE_NAME}(order_by: {id: asc}) {
-        id
-        username
-        email
-        password
-      }
-    }
-  `
-  const { data } = await graphqlAxiosInstance.post("", { query })
+      reply.send(data.data)
+    })
 
-  const isSameUser = data.data.users.some(
-    (user: User) => user.email === email || user.username === username
-  )
+    this.app.post("/create", async (request, reply) => {
+      const { email, username } = request.body as User
+      const query = `
+        {
+          ${process.env.TABLE_NAME}(order_by: {id: asc}) {
+            id
+            username
+            email
+            password
+          }
+        }
+      `
+      const { data } = await this.graphqlClient.post("", { query })
 
-  if (!isSameUser) {
-    const payload = [
-      {
-        topic: `${process.env.TOPIC_CREATE}`,
-        messages: JSON.stringify(request.body),
-      },
-    ]
-    producer.send(payload, (err, data) => {
-      if (err) console.log(err)
-      else {
-        console.log(data)
-        console.log(`ユーザーデータをKafkaに格納`)
+      const isSameUser = data.data.users.some(
+        (existingUser: User) =>
+          existingUser.email === email || existingUser.username === username
+      )
+
+      if (!isSameUser) {
+        const payload = [
+          {
+            topic: `${process.env.TOPIC_CREATE}`,
+            messages: JSON.stringify(request.body),
+          },
+        ]
+
+        this.producer.send(payload, (err, data) => {
+          if (err) console.log(err)
+          else {
+            console.log(data)
+            console.log("ユーザーデータをKafkaに格納")
+          }
+        })
+        return reply.send({ message: "ok" })
+      } else {
+        return reply.status(201).send({ message: "既に登録されています。" })
       }
     })
-    return reply.send({ message: "ok" })
-  } else {
-    return reply.status(201).send({ message: "既に登録されています。" })
   }
-})
 
-producer.on("error", (err) => console.log(err))
+  private setEventListeners() {
+    this.producer.on("ready", () => {
+      console.log("プロデューサー起動")
+    })
 
-const start = async () => {
-  try {
-    await app.listen(3000)
-    console.log(`Fastifyサーバー起動中：${app.server.address()}`)
-  } catch (err) {
-    app.log.error(err)
-    process.exit(1)
+    this.producer.on("error", (err) => console.log(err))
   }
 }
 
-start()
+const userProducer = new UserProducer()
+userProducer.start()
