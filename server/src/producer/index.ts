@@ -14,10 +14,10 @@ interface User {
 }
 
 class UserProducer {
-  private app: FastifyInstance
-  private client: KafkaClient
-  private producer: Producer
-  private graphqlClient: AxiosInstance
+  private readonly app: FastifyInstance
+  private readonly client: KafkaClient
+  private readonly producer: Producer
+  private readonly graphqlClient: AxiosInstance
 
   constructor() {
     this.app = fastify({ logger: true })
